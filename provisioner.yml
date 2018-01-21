@@ -1,0 +1,36 @@
+---
+  - name: Basic provisioner for a new system
+    hosts: all
+    become: True
+    tasks:
+        - name: Install epel-release repo
+          yum: name=epel-release state=present
+          when: ansible_os_family == "RedHat"
+        
+        - name: Install Vim
+          package: name=vim state=present
+        
+        - name: Enable SSH Access
+          lineinfile:
+              dest: /etc/ssh/sshd_config
+              state: present
+              regexp: "{{ item.original }}"
+              line: "{{ item.new }}"
+          with_items:
+            - { original: '^PasswordAuthentication no', new: 'PasswordAuthentication yes' }
+            - { original: '^GSSAPIAuthentication no', new: 'GSSAPIAuthentication yes' }
+        
+        - name: Restart SSH for CentOS
+          service: name=sshd state=restarted
+          when: ansible_os_family == "RedHat"
+        
+        - name: Make sure we have a wheel group
+          group: name=wheel state=present
+        
+        - name: Allow wheel group to have passwordless
+          lineinfile:
+              dest: /etc/sudoers
+              state: present
+              regexp: '^%wheel'
+              line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+              validate: 'visudo -cf %s'
